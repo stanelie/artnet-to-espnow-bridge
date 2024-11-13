@@ -7,6 +7,10 @@ import board
 import neopixel
 import espnow
 
+
+SSID = "licorne de lac"
+PASSWORD = "aaaaaaaaaa"
+
 # import ipaddress
 # 
 # ipv4 = ipaddress.IPv4Address("2.0.0.2")
@@ -17,12 +21,18 @@ import espnow
 # wifi.radio.start_ap("artnet_bridge", "aaaaaaaaaa", channel=1, max_connections=4)
 # # wifi.radio.stop_ap()
 print("connecting wifi...")
-wifi.radio.connect(ssid='licorne de lac',password='aaaaaaaaaa')
+wifi.radio.connect(ssid=SSID,password=PASSWORD)
 wifi.radio.hostname = "lonestar-bridge"
 hostname_bytes = wifi.radio.hostname.encode('utf-8')
 wifi_mac = wifi.radio.mac_address
 ip_address_str = wifi.radio.ipv4_address
-print("connected, my IP addr:", ip_address_str)
+
+for network in wifi.radio.start_scanning_networks():
+    if network.ssid == SSID:
+        channel = network.channel
+wifi.radio.stop_scanning_networks()
+
+print(f"connected, my IP addr: {ip_address_str}, channel {channel}" )
 
 # massage ipaddress
 ip_address_str = str(wifi.radio.ipv4_address)
@@ -45,7 +55,6 @@ sock = pool.socket(pool.AF_INET, pool.SOCK_DGRAM) # UDP socket
 sock.bind(('0.0.0.0', 6454))# say we want to listen on this host,port
 sock.settimeout(0)
 
-counter = 1
 last_sent_time = time.monotonic()
 
 reply_array = [
@@ -102,9 +111,12 @@ reply_array = modified_portion
 reply = bytes(reply_array)
 
 e = espnow.ESPNow()
-peer = espnow.Peer(b'\xff\xff\xff\xff\xff\xff')
+# peer = espnow.Peer(b'\xff\xff\xff\xff\xff\xff')
+peer = espnow.Peer(b'$\xecJ&\x8d\xb0')
 # peer = espnow.Peer(mac=b'$\xecJ&\x8d\xb0')
 e.peers.append(peer)
+
+dmx_data = bytearray(513)
 
 while True:
     
@@ -122,16 +134,16 @@ while True:
             
             if msg[9:11] == b'\x50\x00': # is artnet channel data
 #                print ("DMX!")
-                pixels.fill((msg[19], msg[18], msg[20]))
-                dmx_data = msg[18:531]
+                dmx_data[0] = channel # send wifi channel as first byte of the transmission
+                dmx_data[1:] = msg[18:531] # send the DMX channels
+                pixels.fill((dmx_data[2], dmx_data[1], dmx_data[3]))
 #                print(dmx_data[2])
                 e.send(dmx_data[0:10], peer) # send 250 bytes max (espnow limitation)
     except:
         pass
             
-#     if time.monotonic() - last_sent_time >= 0.2:
-#         e.send("counter " + str(counter), peer)
-#         print(counter)
-#         last_sent_time = time.monotonic()
-#         counter = counter +1   
+    if time.monotonic() - last_sent_time >= 0.5:
+        e.send(dmx_data[0:10], peer) # resend last dmx values as beacon
+        last_sent_time = time.monotonic()
+        print("resend")
 
