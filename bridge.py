@@ -1,4 +1,5 @@
 # Circuitpython on Waveshare ESP32-S3-ZERO
+# artnet to espnow bridge
 
 import socketpool
 import wifi
@@ -8,7 +9,7 @@ import neopixel
 import espnow
 
 
-SSID = "licorne de lac"
+SSID = "artnet_test"
 PASSWORD = "aaaaaaaaaa"
 
 # import ipaddress
@@ -111,8 +112,8 @@ reply_array = modified_portion
 reply = bytes(reply_array)
 
 e = espnow.ESPNow()
-# peer = espnow.Peer(b'\xff\xff\xff\xff\xff\xff')
-peer = espnow.Peer(b'$\xecJ&\x8d\xb0')
+peer = espnow.Peer(b'\xff\xff\xff\xff\xff\xff')
+# peer = espnow.Peer(b'$\xecJ&\x8d\xb0')
 # peer = espnow.Peer(mac=b'$\xecJ&\x8d\xb0')
 e.peers.append(peer)
 
