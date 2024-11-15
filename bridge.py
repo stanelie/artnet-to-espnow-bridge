@@ -34,11 +34,11 @@ def scan_for_wifi():
     for network in networks:
 #        print("ssid:",network.ssid, "rssi:",network.rssi)
         if network.ssid == SSID:
-            print(f"network {SSID} is present!")
+            print(f"network \"{SSID}\" is present!")
             return True
         
 def connect_to_wifi():
-    print("connecting wifi...")
+    print(f"connecting wifi to \"{SSID}\"...")
     wifi.radio.connect(SSID,PASSWORD)
 
 
