@@ -1,3 +1,4 @@
+
 # Circuitpython on Waveshare ESP32-S3-ZERO
 # artnet to espnow bridge
 
@@ -12,8 +13,23 @@ import espnow
 # microcontroller.cpu.frequency = 80000000
 # print(f"cpu freq : {microcontroller.cpu.frequency}")
 
+# Replace with your SSID and password
 SSID = "sticks"
 PASSWORD = "patateaufour"
+
+
+
+def connect_to_wifi():
+    try:
+        print(f"connecting wifi to \"{SSID}\"...")
+        wifi.radio.hostname = "lonestar-bridge"
+        wifi.radio.connect(SSID,PASSWORD)
+        time.sleep(0.5)
+    except ConnectionError as e:
+        print(f"{e} . Retrying...")
+        time.sleep(0.5)
+        
+connect_to_wifi()
 
 # import ipaddress
 # 
@@ -25,41 +41,13 @@ PASSWORD = "patateaufour"
 # wifi.radio.start_ap("artnet_bridge", "aaaaaaaaaa", channel=1, max_connections=4)
 # # wifi.radio.stop_ap()
 
-def scan_for_wifi():
-    networks = []
-    for network in wifi.radio.start_scanning_networks():
-        networks.append(network)
-    wifi.radio.stop_scanning_networks()
-    networks = sorted(networks, key=lambda net: net.rssi, reverse=False)
-    for network in networks:
-#        print("ssid:",network.ssid, "rssi:",network.rssi)
-        if network.ssid == SSID:
-            print(f"network \"{SSID}\" is present!")
-            return True
-        
-def connect_to_wifi():
-    print(f"connecting wifi to \"{SSID}\"...")
-    wifi.radio.connect(SSID,PASSWORD)
-
-
-if scan_for_wifi():
-    connect_to_wifi()
-else:
-    print(f"wifi \"{SSID}\" absent, retrying in 2 seconds...")
-    scan_for_wifi()
-
-
-wifi.radio.hostname = "lonestar-bridge"
 hostname_bytes = wifi.radio.hostname.encode('utf-8')
 wifi_mac = wifi.radio.mac_address
+wifi_channel = wifi.radio.ap_info.channel
+print(f"wifi channel: {wifi_channel}")
 ip_address_str = wifi.radio.ipv4_address
 
-for network in wifi.radio.start_scanning_networks():
-    if network.ssid == SSID:
-        channel = network.channel
-wifi.radio.stop_scanning_networks()
-
-print(f"connected, my IP addr: {ip_address_str}, channel {channel}" )
+print(f"connected, my IP addr: {ip_address_str}, channel {wifi_channel}" )
 
 # massage ipaddress
 ip_address_str = str(wifi.radio.ipv4_address)
@@ -146,33 +134,35 @@ e.peers.append(peer)
 dmx_data = bytearray(513)
 
 while True:
-    
-    sock.settimeout(0.2)
-    try:
-        size, addr = sock.recvfrom_into(udp_buffer)
-        msg = bytes(udp_buffer)
-    
-        if msg[:8] == b'Art-Net\0': # Check if the received data is an Art-Net packet
+    if wifi.radio.connected:
+        sock.settimeout(0.2)
+        try:
+            size, addr = sock.recvfrom_into(udp_buffer)
+            msg = bytes(udp_buffer)
+        
+            if msg[:8] == b'Art-Net\0': # Check if the received data is an Art-Net packet
 
-            if msg[9:11] == b'\x20\x00': # is artpoll
-                print(f"artpoll packet from {addr[0]}")
-                sock.sendto(reply, (addr[0],6454) )
-                print(f"Artpoll reply sent to {addr[0]}")
-            
-            if msg[9:11] == b'\x50\x00': # is artnet channel data
-#                print ("DMX!")
-                dmx_data[0] = channel # send wifi channel as first byte of the transmission
-                dmx_data[1:] = msg[18:531] # send the DMX channels
-                pixels.fill((dmx_data[2], dmx_data[1], dmx_data[3]))
-#                print(dmx_data[2])
-                e.send(dmx_data[0:10], peer) # send 250 bytes max (espnow limitation)
-    except:
-        pass
-            
-    if time.monotonic() - last_sent_time >= 0.5:
-        e.send(dmx_data[0:10], peer) # resend last dmx values as beacon
-        last_sent_time = time.monotonic()
-        print("resend")
-#        print(f"cpu temp: {microcontroller.cpu.temperature}")
+                if msg[9:11] == b'\x20\x00': # is artpoll
+                    print(f"artpoll packet from {addr[0]}")
+                    sock.sendto(reply, (addr[0],6454) )
+                    print(f"Artpoll reply sent to {addr[0]}")
+                
+                if msg[9:11] == b'\x50\x00': # is artnet channel data
+    #                print ("DMX!")
+                    dmx_data[0] = wifi_channel # send wifi channel as first byte of the transmission
+                    dmx_data[1:] = msg[18:531] # send the DMX channels
+                    pixels.fill((dmx_data[2], dmx_data[1], dmx_data[3]))
+    #                print(dmx_data[2])
+                    e.send(dmx_data[0:10], peer) # send 250 bytes max (espnow limitation)
+        except:
+            pass
+                
+        if time.monotonic() - last_sent_time >= 0.1:
+            e.send(dmx_data[0:10], peer) # resend last dmx values as beacon
+            last_sent_time = time.monotonic()
+#            print("resend")
+    else:
+        connect_to_wifi()
+
 
 
