@@ -16,6 +16,7 @@ import espnow
 # Replace with your SSID and password
 SSID = "sticks"
 PASSWORD = "patateaufour"
+artnet_universe = 1
 
 
 
@@ -148,12 +149,13 @@ while True:
                     print(f"Artpoll reply sent to {addr[0]}")
                 
                 if msg[9:11] == b'\x50\x00': # is artnet channel data
-    #                print ("DMX!")
-                    dmx_data[0] = wifi_channel # send wifi channel as first byte of the transmission
-                    dmx_data[1:] = msg[18:531] # send the DMX channels
-                    pixels.fill((dmx_data[2], dmx_data[1], dmx_data[3]))
-    #                print(dmx_data[2])
-                    e.send(dmx_data[0:10], peer) # send 250 bytes max (espnow limitation)
+                    if msg[15] == (artnet_universe - 1):
+        #                print ("DMX!")
+                        dmx_data[0] = wifi_channel # send wifi channel as first byte of the transmission
+                        dmx_data[1:] = msg[18:531] # send the DMX channels
+                        pixels.fill((dmx_data[2], dmx_data[1], dmx_data[3]))
+        #                print(dmx_data[2])
+                        e.send(dmx_data[0:10], peer) # send 250 bytes max (espnow limitation)
         except:
             pass
                 
@@ -163,6 +165,7 @@ while True:
 #            print("resend")
     else:
         connect_to_wifi()
+
 
 
 
