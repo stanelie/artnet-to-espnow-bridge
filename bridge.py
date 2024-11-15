@@ -7,10 +7,13 @@ import time
 import board
 import neopixel
 import espnow
+# import microcontroller
 
+# microcontroller.cpu.frequency = 80000000
+# print(f"cpu freq : {microcontroller.cpu.frequency}")
 
-SSID = "artnet_test"
-PASSWORD = "aaaaaaaaaa"
+SSID = "sticks"
+PASSWORD = "patateaufour"
 
 # import ipaddress
 # 
@@ -21,8 +24,31 @@ PASSWORD = "aaaaaaaaaa"
 # wifi.radio.set_ipv4_address_ap(ipv4=ipv4, netmask=netmask, gateway=gateway)
 # wifi.radio.start_ap("artnet_bridge", "aaaaaaaaaa", channel=1, max_connections=4)
 # # wifi.radio.stop_ap()
-print("connecting wifi...")
-wifi.radio.connect(ssid=SSID,password=PASSWORD)
+
+def scan_for_wifi():
+    networks = []
+    for network in wifi.radio.start_scanning_networks():
+        networks.append(network)
+    wifi.radio.stop_scanning_networks()
+    networks = sorted(networks, key=lambda net: net.rssi, reverse=False)
+    for network in networks:
+#        print("ssid:",network.ssid, "rssi:",network.rssi)
+        if network.ssid == SSID:
+            print(f"network {SSID} is present!")
+            return True
+        
+def connect_to_wifi():
+    print("connecting wifi...")
+    wifi.radio.connect(SSID,PASSWORD)
+
+
+if scan_for_wifi():
+    connect_to_wifi()
+else:
+    print(f"wifi \"{SSID}\" absent, retrying in 2 seconds...")
+    scan_for_wifi()
+
+
 wifi.radio.hostname = "lonestar-bridge"
 hostname_bytes = wifi.radio.hostname.encode('utf-8')
 wifi_mac = wifi.radio.mac_address
@@ -147,4 +173,6 @@ while True:
         e.send(dmx_data[0:10], peer) # resend last dmx values as beacon
         last_sent_time = time.monotonic()
         print("resend")
+#        print(f"cpu temp: {microcontroller.cpu.temperature}")
+
 
