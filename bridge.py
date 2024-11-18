@@ -6,17 +6,16 @@ import socketpool
 import wifi
 import time
 import board
+import os
 import neopixel
 import espnow
 # import microcontroller
+from config import *
+
+artnet_universe = 1 # if this is set to something other then 1, needs broadcast transmission?
 
 # microcontroller.cpu.frequency = 80000000
 # print(f"cpu freq : {microcontroller.cpu.frequency}")
-
-# Replace with your SSID and password
-SSID = "sticks"
-PASSWORD = "patateaufour"
-artnet_universe = 1 # if this is set to something other then 1, needs broadcast transmission?
 
 def connect_to_wifi():
     try:
