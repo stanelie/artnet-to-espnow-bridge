@@ -130,7 +130,6 @@ reply_array = modified_portion
 # Universe
 reply_array[19] = artnet_universe - 1
 reply_array[190] = artnet_universe - 1
-print(f"19: {reply_array[19]} 190: {reply_array[190]}")
 
 reply = bytes(reply_array)
 
