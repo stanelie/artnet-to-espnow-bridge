@@ -159,7 +159,7 @@ while True:
                     print(f"Artpoll reply sent to {addr[0]}")
                 
                 if msg[9:11] == b'\x50\x00': # is artnet channel data
-                    print(f"DMX!, universe {msg[14]}")
+#                    print(f"DMX!, universe {msg[14]}")
                     if msg[14] == (artnet_universe - 1):
         #                print ("DMX!")
                         dmx_data[0] = wifi_channel # send wifi channel as first byte of the transmission
