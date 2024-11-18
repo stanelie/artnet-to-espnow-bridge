@@ -16,9 +16,7 @@ import espnow
 # Replace with your SSID and password
 SSID = "sticks"
 PASSWORD = "patateaufour"
-artnet_universe = 1
-
-
+artnet_universe = 1 # if this is set to something other then 1, needs broadcast transmission?
 
 def connect_to_wifi():
     try:
@@ -80,10 +78,15 @@ reply_array = [
                 0x36, 0x19,                                     # port 6454
 				0x00, 0x01,                                     # version info of this node
                 0x00,                                           # NetSwitch
-                0x00,                                           # SubSwitch
+                0x00,                                           # SubSwitch (universe?)
                 0x2B, 0xFA,                                     # OEM code (Ex Machina is 2BFA)
-                0x00, 0xe0, 0x00, 0x00, 0x73, 0x6c, 0x65, 0x73, 0x61, 0x2d,
-				0x69, 0x70, 0x31, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x73, 0x6c, 0x65, 0x73,               
+                0x00,                                           # UBEA version #
+                0xF0,                                           # status
+                0x00, 0x00,                                     # ESTA manufacturer code
+                0x73, 0x6c, 0x65, 0x73, 0x61, 0x2d, 0x69, 0x70, # Short Name 18 bytes
+                0x31, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+				0x00, 0x00,
+                0x73, 0x6c, 0x65, 0x73,               
 				0x61, 0x2d, 0x69, 0x70, 0x31, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -124,6 +127,11 @@ end_index = min(44 + num_bytes_to_replace, len(reply_array))
 modified_portion = bytearray(reply_array[:44]) + hostname_bytes + bytearray(reply_array[end_index:])
 reply_array = modified_portion
 
+# Universe
+reply_array[19] = artnet_universe - 1
+reply_array[190] = artnet_universe - 1
+print(f"19: {reply_array[19]} 190: {reply_array[190]}")
+
 reply = bytes(reply_array)
 
 e = espnow.ESPNow()
@@ -149,7 +157,8 @@ while True:
                     print(f"Artpoll reply sent to {addr[0]}")
                 
                 if msg[9:11] == b'\x50\x00': # is artnet channel data
-                    if msg[15] == (artnet_universe - 1):
+                    print(f"DMX!, universe {msg[14]}")
+                    if msg[14] == (artnet_universe - 1):
         #                print ("DMX!")
                         dmx_data[0] = wifi_channel # send wifi channel as first byte of the transmission
                         dmx_data[1:] = msg[18:531] # send the DMX channels
