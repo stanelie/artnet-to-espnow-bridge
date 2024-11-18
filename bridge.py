@@ -12,6 +12,10 @@ import espnow
 # import microcontroller
 from config import *
 
+#
+# the wifi config is in a config.py file at the same level as this file
+#
+
 artnet_universe = 1 # if this is set to something other then 1, needs broadcast transmission?
 
 # microcontroller.cpu.frequency = 80000000
