@@ -30,6 +30,7 @@ def connect_to_wifi():
     except ConnectionError as e:
         print(f"{e} . Retrying...")
         time.sleep(0.5)
+        connect_to_wifi()
         
 connect_to_wifi()
 
