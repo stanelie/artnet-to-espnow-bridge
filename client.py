@@ -1,6 +1,5 @@
 # Circuitpython on Waveshare ESP32-S3-ZERO
-# artnet espnow client/pixel
-
+# artnet espnow client/repeater (see below)
 import espnow
 import wifi
 import board
@@ -80,7 +79,7 @@ while True:
             channel = dmx_data[0]
             update_pixels(dmx_data)
             start_ap_once_more(channel)
-#            e.send(dmx_data,peer)
+#            e.send(dmx_data,peer)        ####### uncomment to make this into a repeater
             old_packet = packet[1]
 #            print(f"{packet[0]}")
 
@@ -92,5 +91,3 @@ while True:
             pixels.fill((0,0,0))
             start_ap(channel)
             time.sleep(0.3)
-
-
