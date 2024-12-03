@@ -19,6 +19,7 @@ import supervisor
 # the wifi config is in a config.py file at the same level as this file
 #
 
+USE_STATIC_IP = True
 HOSTNAME = "lonestar-bridge"
 artnet_universe = UNIVERSE
 
@@ -36,7 +37,8 @@ def connect_to_wifi():
     try:
         print(f"connecting wifi to \"{SSID}\"...")
         wifi.radio.hostname = HOSTNAME
-        wifi.radio.set_ipv4_address(ipv4 = ipv4, netmask = netmask, gateway = gateway) # use static IP address
+        if USE_STATIC_IP:
+            wifi.radio.set_ipv4_address(ipv4 = ipv4, netmask = netmask, gateway = gateway) # use static IP address
         wifi.radio.connect(SSID,PASSWORD, timeout=5)
         global ip_address_str
         ip_address_str = str(wifi.radio.ipv4_address)
@@ -54,9 +56,7 @@ def create_wifi_AP():
     wifi.radio.hostname = HOSTNAME
     wifi.radio.set_ipv4_address_ap(ipv4 = ipv4, netmask = netmask, gateway = gateway) # use static IP address
     wifi.radio.start_ap(SSID, PASSWORD, channel=CHANNEL, max_connections=4)
-#    potato = str(wifi.radio.ipv4_address_ap) # bug : needed so IP is available in ip_address_str
-#    print(potato)
-    time.sleep(0.01)
+    time.sleep(0.01) # bug : needed so IP is available in ip_address_str
     global ip_address_str
     ip_address_str = str(wifi.radio.ipv4_address_ap)
     global wifi_channel
