@@ -19,8 +19,6 @@ import supervisor
 # the wifi config is in a config.py file at the same level as this file
 #
 
-artnet_universe = UNIVERSE
-
 wifi_mac = wifi.radio.mac_address
 ip_address_str = 0
 wifi_channel = 0
@@ -149,7 +147,7 @@ modified_portion = bytearray(reply_array[:44]) + hostname_bytes + bytearray(repl
 reply_array = modified_portion
 
 # Universe
-reply_array[190] = artnet_universe - 1
+reply_array[190] = UNIVERSE - 1
 
 e = espnow.ESPNow()
 peer = espnow.Peer(b'\xff\xff\xff\xff\xff\xff')
@@ -175,7 +173,7 @@ while True:
                 
                 if msg[9:11] == b'\x50\x00': # is artnet DMX channel data
                     print("dmx!")
-                    if msg[14] == (artnet_universe - 1):
+                    if msg[14] == (UNIVERSE - 1):
                         dmx_data[0] = wifi_channel # send wifi channel as first byte of the transmission
                         dmx_data[1:] = msg[(17+STARTDMX):531] # send the DMX channels
                         pixels.fill((dmx_data[2], dmx_data[1], dmx_data[3]))
