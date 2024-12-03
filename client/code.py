@@ -19,8 +19,6 @@ import supervisor
 # the wifi config is in a config.py file at the same level as this file
 #
 
-USE_STATIC_IP = True
-HOSTNAME = "lonestar-bridge"
 artnet_universe = UNIVERSE
 
 wifi_mac = wifi.radio.mac_address
@@ -62,8 +60,10 @@ def create_wifi_AP():
     global wifi_channel
     wifi_channel = CHANNEL
 
-connect_to_wifi() # connect to access point as wifi client
-# create_wifi_AP() # creates wifi access point
+if not CREATE_AP:
+    connect_to_wifi() # connect to access point as wifi client
+else:
+    create_wifi_AP() # creates wifi access point
 
 hostname_bytes = wifi.radio.hostname.encode('utf-8')
 
