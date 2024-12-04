@@ -13,42 +13,48 @@ import digitalio
 import busio
 import adafruit_rfm9x
 import ipaddress
-import supervisor
+# import supervisor
 
 #
 # the wifi config is in a config.py file at the same level as this file
 #
 
+wifi.radio.hostname = HOSTNAME
+hostname_bytes = HOSTNAME.encode('utf-8')
 wifi_mac = wifi.radio.mac_address
 ip_address_str = 0
 wifi_channel = 0
+last_sent_time = time.monotonic()
+dmx_data = bytearray(513)
 
-# setup IP stuff if we do not use DHCP
+# setup IP stuff if we use static IP
 ip_byte = bytes([2,(0x2B + 0xFA + wifi_mac[3]) & 0xFF,wifi_mac[4],wifi_mac[5]]) # derive IP address from MAC address and OEM code
 ipv4 = ipaddress.IPv4Address(ip_byte)
 netmask = ipaddress.IPv4Address("255.0.0.0")
 gateway = ipaddress.IPv4Address("2.0.0.1")
 
+pixel_pin = board.NEOPIXEL
+# ORDER = neopixel.GRB
+pixels = neopixel.NeoPixel(board.NEOPIXEL, 1)
+pixels.fill((0, 0, 0))
+
 def connect_to_wifi():
-    try:
-        print(f"connecting wifi to \"{SSID}\"...")
-        wifi.radio.hostname = HOSTNAME
-        if USE_STATIC_IP:
-            wifi.radio.set_ipv4_address(ipv4 = ipv4, netmask = netmask, gateway = gateway) # use static IP address
-        wifi.radio.connect(SSID,PASSWORD, timeout=5)
-        time.sleep(1)
-        global ip_address_str
-        ip_address_str = str(wifi.radio.ipv4_address)
-        global wifi_channel
-        wifi_channel = wifi.radio.ap_info.channel
-    except ConnectionError as e:
-        print(f"{e} . Retrying...")
-        time.sleep(1)
-        
+    while not wifi.radio.connected:
+        try:
+            print(f"connecting wifi to \"{SSID}\"...")
+            if USE_STATIC_IP:
+                wifi.radio.set_ipv4_address(ipv4 = ipv4, netmask = netmask, gateway = gateway) # use static IP address
+            wifi.radio.connect(SSID,PASSWORD, timeout=5)
+        except ConnectionError as e:
+            print(f"{e} . Retrying...")
+    global ip_address_str
+    ip_address_str = str(wifi.radio.ipv4_address)
+    global wifi_channel
+    wifi_channel = wifi.radio.ap_info.channel
+
 def create_wifi_AP():
     print(f"setting up wifi access point \"{SSID}\"...")
     CHANNEL = 1
-    wifi.radio.hostname = HOSTNAME
     wifi.radio.set_ipv4_address_ap(ipv4 = ipv4, netmask = netmask, gateway = gateway)
     wifi.radio.start_ap(SSID, PASSWORD, channel=CHANNEL, max_connections=4)
     time.sleep(0.01) # bug : needed so IP is available in ip_address_str
@@ -56,8 +62,6 @@ def create_wifi_AP():
     ip_address_str = str(wifi.radio.ipv4_address_ap)
     global wifi_channel
     wifi_channel = CHANNEL
-
-hostname_bytes = HOSTNAME.encode('utf-8')
 
 # setup LoRa radio
 RADIO_FREQ_MHZ = 433.0
@@ -70,21 +74,11 @@ rfm9x.spreading_factor = 7
 rfm9x.signal_bandwidth = 250000
 rfm9x.coding_rate = 5
 
-pixel_pin = board.NEOPIXEL
-# ORDER = neopixel.GRB
-pixels = neopixel.NeoPixel(board.NEOPIXEL, 1)
-pixels.fill((0, 0, 0))
-
 pool = socketpool.SocketPool(wifi.radio)
-
-# udp_host = str(wifi.radio.ipv4_address) # my LAN IP as a string
 udp_buffer = bytearray(572)  # stores our incoming packet
-
 sock = pool.socket(pool.AF_INET, pool.SOCK_DGRAM) # UDP socket
 sock.bind(('0.0.0.0', 6454))# say we want to listen on this host,port
 sock.settimeout(0)
-
-last_sent_time = time.monotonic()
 
 reply_array = [
                 0x41, 0x72, 0x74, 0x2d, 0x4e, 0x65, 0x74, 0x00, # "Art-Net\0" header
@@ -153,7 +147,13 @@ e = espnow.ESPNow()
 peer = espnow.Peer(b'\xff\xff\xff\xff\xff\xff')
 e.peers.append(peer)
 
-dmx_data = bytearray(513)
+def start_network():
+    if not CREATE_AP:
+        connect_to_wifi()
+    else:
+        create_wifi_AP()
+        
+start_network()
 
 while True:
     if wifi.radio.connected:
@@ -172,7 +172,7 @@ while True:
                     print(f"Artpoll reply sent to {addr[0]}")
                 
                 if msg[9:11] == b'\x50\x00': # is artnet DMX channel data
-                    print("dmx!")
+    #                    print("dmx!")
                     if msg[14] == (UNIVERSE - 1):
                         dmx_data[0] = wifi_channel # send wifi channel as first byte of the transmission
                         dmx_data[1:] = msg[(17+STARTDMX):531] # send the DMX channels
@@ -187,8 +187,5 @@ while True:
             rfm9x.send(dmx_data[0:50])
             last_sent_time = time.monotonic()
     else:
-        if not CREATE_AP:
-            connect_to_wifi()
-        else:
-            create_wifi_AP()
+        start_network()
 
