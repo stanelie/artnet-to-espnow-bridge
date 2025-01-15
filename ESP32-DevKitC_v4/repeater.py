@@ -39,6 +39,8 @@ def start_ap_once_more(channel):
         packet_received_flag = 1
         start_ap(channel)
         # onboard_pixel.fill((0,5,0))  # onboard LED stays green when correct channel has been reached
+        pixels.fill((0, 255, 0, 0))
+        time.sleep(1)
 
 def check_for_packet():
     if e:
@@ -79,7 +81,7 @@ start_ap(channel)
 
 # onboard_pixel = neopixel.NeoPixel(board.NEOPIXEL, 1, pixel_order=neopixel.RGB) # onboard neopixel
 pixels = neopixel.NeoPixel(board.IO12, 1,pixel_order=neopixel.RGBW) # big neopixel connected on digital output 1
-pixels.brightness = 1
+pixels.brightness = 0.01
 pixels.fill((0, 0, 0, 0))
 
 # pwmR = pwmio.PWMOut(board.D3, frequency=1000)
@@ -106,8 +108,10 @@ while True:
         if packet_received_flag == 0: # No packet received, restart AP and increment channel
             channel = (channel % 11) + 1
             # onboard_pixel.fill((5,0,0)) # blink red each time we switch channel
+            pixels.fill((255, 0, 0, 0))
             time.sleep(0.05)
             # onboard_pixel.fill((0,0,0))
+            pixels.fill((0, 0, 0, 0))
             start_ap(channel)
             time.sleep(0.3)
 
