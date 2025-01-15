@@ -10,7 +10,7 @@ import neopixel
 
 # CONFIG
 dmx_1st_channel = 1
-is_repeater = True  # change to True to make this device into a repeater
+is_repeater = False  # change to True to make this device into a repeater
 channel = 1  # radio scan start channel, set to correct channel to connect faster
 
 # variables initialization
@@ -38,7 +38,7 @@ def start_ap_once_more(channel):
         print(f"got an ESPNow packet that says we're on channel {channel}")
         packet_received_flag = 1
         start_ap(channel)
-        onboard_pixel.fill((0,5,0))  # onboard LED stays green when correct channel has been reached
+        # onboard_pixel.fill((0,5,0))  # onboard LED stays green when correct channel has been reached
 
 def check_for_packet():
     if e:
