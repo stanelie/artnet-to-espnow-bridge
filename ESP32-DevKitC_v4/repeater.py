@@ -10,7 +10,7 @@ import neopixel
 
 # CONFIG
 dmx_1st_channel = 1
-is_repeater = False  # change to True to make this device into a repeater
+is_repeater = True  # change to True to make this device into a repeater
 channel = 1  # radio scan start channel, set to correct channel to connect faster
 
 # variables initialization
