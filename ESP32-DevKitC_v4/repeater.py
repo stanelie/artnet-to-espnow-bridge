@@ -10,7 +10,7 @@ import neopixel
 
 # CONFIG
 dmx_1st_channel = 1
-is_repeater = False  # change to True to make this device into a repeater
+is_repeater = True  # change to True to make this device into a repeater
 channel = 1  # radio scan start channel, set to correct channel to connect faster
 
 # variables initialization
@@ -39,7 +39,7 @@ def start_ap_once_more(channel):
         packet_received_flag = 1
         start_ap(channel)
         # onboard_pixel.fill((0,5,0))  # onboard LED stays green when correct channel has been reached
-        pixels.fill((0, 255, 0, 0))
+        pixels.fill((0, 1, 0, 0))
         time.sleep(1)
 
 def check_for_packet():
@@ -47,6 +47,7 @@ def check_for_packet():
         return True
 
 def update_pixels(dmx_data):
+    # print("update_pixels")
     dmx1 = dmx_data[dmx_1st_channel + 0]
     dmx2 = dmx_data[dmx_1st_channel + 1]
     dmx3 = dmx_data[dmx_1st_channel + 2]
@@ -69,6 +70,7 @@ def read_packet():
     global packet
     global errors
     try:
+        # print("read packet")
         packet = e.read()
     except ValueError as error:
         print(f"{error} error {errors}")
@@ -81,7 +83,7 @@ start_ap(channel)
 
 # onboard_pixel = neopixel.NeoPixel(board.NEOPIXEL, 1, pixel_order=neopixel.RGB) # onboard neopixel
 pixels = neopixel.NeoPixel(board.IO12, 1,pixel_order=neopixel.RGBW) # big neopixel connected on digital output 1
-pixels.brightness = 0.01
+pixels.brightness = 1
 pixels.fill((0, 0, 0, 0))
 
 # pwmR = pwmio.PWMOut(board.D3, frequency=1000)
@@ -102,13 +104,14 @@ while True:
         if not packet_received_flag: 
             start_ap_once_more(channel)
         if is_repeater:
+            # print("repeat")
             e.send(dmx_data,peer)
 
     else:
         if packet_received_flag == 0: # No packet received, restart AP and increment channel
             channel = (channel % 11) + 1
             # onboard_pixel.fill((5,0,0)) # blink red each time we switch channel
-            pixels.fill((255, 0, 0, 0))
+            pixels.fill((1, 0, 0, 0))
             time.sleep(0.05)
             # onboard_pixel.fill((0,0,0))
             pixels.fill((0, 0, 0, 0))
