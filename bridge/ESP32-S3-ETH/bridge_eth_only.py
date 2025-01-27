@@ -10,9 +10,9 @@ from config import *
 import neopixel
 import ipaddress
 
-cs = digitalio.DigitalInOut(board.GPIO14)
-rst = digitalio.DigitalInOut(board.GPIO9)
-spi = busio.SPI(board.GPIO13, MOSI=board.GPIO11, MISO=board.GPIO12)
+cs = digitalio.DigitalInOut(board.IO14)
+rst = digitalio.DigitalInOut(board.IO9)
+spi = busio.SPI(board.IO13, MOSI=board.IO11, MISO=board.IO12)
 
 socket_started = False
 ip_address_str = 0
@@ -26,8 +26,8 @@ gateway: str = "2.0.0.1"
 dns: str = "2.0.0.1"
 
 pixel_pin = board.NEOPIXEL
-# ORDER = neopixel.GRB
-pixels = neopixel.NeoPixel(board.NEOPIXEL, 1)
+ORDER = neopixel.GRB
+pixels = neopixel.NeoPixel(board.NEOPIXEL, 1, pixel_order=ORDER)
 pixels.fill((0, 0, 0))
 
 reply_array = bytearray(
@@ -61,6 +61,7 @@ reply_array = bytearray(
                 b'\x00' b'\x00' b'\x00' b'\x00' b'\x00' b'\x00' b'\x00' b'\x00' b'\x00' b'\x00' b'\x00' b'\x00' b'\x00' b'\x00' b'\x00'
                 )
 
+
 def start_socket_eth():
     pool = socketpool.SocketPool(eth)
     global sock
@@ -80,7 +81,7 @@ def start_socket_eth():
     ip_address_str = str(eth.pretty_ip(eth.ip_address))
     print("My IP address is:", eth.pretty_ip(eth.ip_address))
     format_reply_array()
-
+    
 def format_reply_array():
     octets = ip_address_str.split('.')   
     ip_address_bytes = bytearray(4)
@@ -90,8 +91,8 @@ def format_reply_array():
     reply_array[10] = ip_address_bytes[0]
     reply_array[11] = ip_address_bytes[1]
     reply_array[12] = ip_address_bytes[2]
-    reply_array[13] = ip_address_bytes[3]    
-
+    reply_array[13] = ip_address_bytes[3]
+    
     if NETWORK_MODE == "ETH":
     #  print(f"ethernet mac : {eth.mac_address}")
         reply_array[201] = eth.mac_address[0]
@@ -108,7 +109,7 @@ def format_reply_array():
         reply_array[204] = wifi_mac[3]
         reply_array[205] = wifi_mac[4]
         reply_array[206] = wifi_mac[5]
-      
+
     #  Short name
     num_bytes_to_replace = len(hostname_bytes)
     end_index = min(26 + num_bytes_to_replace, len(reply_array))
@@ -122,8 +123,8 @@ def format_reply_array():
     reply_array = modified_portion
 
     # Universe
-    reply_array[190] = UNIVERSE - 1    
-
+    reply_array[190] = UNIVERSE
+    
 def process_packet():
     size, addr = sock.recvfrom_into(udp_buffer, MAXBUF)
     msg = bytes(udp_buffer)
@@ -138,26 +139,25 @@ def process_packet():
         if msg[9:11] == b'\x50\x00':  # is artnet DMX channel data
             # print("dmx!")
             # print(f"received universe {msg[14]}")
-            if msg[14] == (UNIVERSE - 1):
+            if msg[14] == (UNIVERSE):
                 if NETWORK_MODE == "ETH" or NETWORK_MODE == "AP":
                     dmx_data[0] = CHANNEL
                 if NETWORK_MODE == "STA":
                     dmx_data[0] = wifi_channel  # send wifi channel as first byte of the transmission
                 dmx_data[1:] = msg[(17+STARTDMX):531]  # send the DMX channels
-                pixels.fill((dmx_data[2], dmx_data[1], dmx_data[3]))
+                pixels.fill((dmx_data[1], dmx_data[3], dmx_data[5]))
                 e.send(dmx_data[0:50], peer)  # send 250 bytes max (espnow limitation)
     global last_sent_time            
     if time.monotonic() - last_sent_time >= 0.3:
         e.send(dmx_data[0:50], peer)  # resend last dmx values as beacon
         last_sent_time = time.monotonic()
-
         
 e = espnow.ESPNow()
 peer = espnow.Peer(b'\xff\xff\xff\xff\xff\xff')
 e.peers.append(peer)
 
 while True:
-
+    
         if NETWORK_MODE == "ETH":
             try:
                 print(f"connecting to ethernet...")
@@ -173,6 +173,9 @@ while True:
                     process_packet()
                 else:
                     print("link down...")
-          
+            
             except ConnectionError as wiznet5k_error:
                 print(wiznet5k_error)
+
+
+
