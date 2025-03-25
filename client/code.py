@@ -54,10 +54,10 @@ def update_pixels(dmx_data):
     dmx7 = dmx_data[dmx_1st_channel + 6]
     dmx8 = dmx_data[dmx_1st_channel + 7]
     pixels.fill((dmx1,dmx3,dmx5,dmx7))
-    pwmW.duty_cycle = (dmx1 << 8) | dmx2
-    pwmG.duty_cycle = (dmx3 << 8) | dmx4
-    pwmB.duty_cycle = (dmx5 << 8) | dmx6
-    pwmR.duty_cycle = (dmx7 << 8) | dmx8
+    pwmR.duty_cycle = (dmx1 << 8) | dmx2
+    pwmW.duty_cycle = (dmx3 << 8) | dmx4
+    pwmG.duty_cycle = (dmx5 << 8) | dmx6
+    pwmB.duty_cycle = (dmx7 << 8) | dmx8
 #    pwmW.duty_cycle = (dmx1*255)
 #    pwmG.duty_cycle = (dmx2*255)
 #    pwmB.duty_cycle = (dmx3*255)
