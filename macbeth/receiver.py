@@ -1,17 +1,19 @@
-# Circuitpython on Waveshare ESP32-S3-ZERO or ESP32-C3-mini
-# artnet/DMX espnow client/pixel/repeater
+# Circuitpython on Waveshare ESP32-S3-ZERO
+# artnet espnow client/pixel/repeater
 
 import espnow
 import wifi
 import board
 import time
-import neopixel
+import digitalio
+
 import pwmio
 
 # CONFIG
 dmx_start_addr = 1
-is_repeater = False  # change to True to make this device into a repeater
+is_repeater = True  # change to True to make this device into a repeater
 channel = 6  # radio scan start channel, set to correct channel to connect faster
+device = 'C3' # S3 for S3-zero, C3 for C3-mini
 
 # variables initialization
 rcvd_channel = 0
@@ -21,6 +23,24 @@ peer = espnow.Peer(b'\xff\xff\xff\xff\xff\xff')
 errors = 1  # used to display error count
 packet = None # Using None to indicate no packet read yet
 # old_packet = 0
+
+# setup onboard LED for C3-mini
+if device == 'C3':
+    led = digitalio.DigitalInOut(board.LED)
+    led.direction = digitalio.Direction.OUTPUT
+    pwmR = pwmio.PWMOut(board.IO0, frequency=2500)
+    pwmG = pwmio.PWMOut(board.IO3, frequency=2500)
+    pwmB = pwmio.PWMOut(board.IO10, frequency=2500)
+    pwmW = pwmio.PWMOut(board.IO1, frequency=2500)
+elif device == 'S3':
+    import neopixel
+    onboard_pixel = neopixel.NeoPixel(board.NEOPIXEL, 1, pixel_order=neopixel.RGB) # onboard neopixel
+    pwmR = pwmio.PWMOut(board.D3, frequency=2500)
+    pwmG = pwmio.PWMOut(board.D4, frequency=2500)
+    pwmB = pwmio.PWMOut(board.D5, frequency=2500)
+    pwmW = pwmio.PWMOut(board.D6, frequency=2500)
+else:
+    onboard_pixel = None
 
 def start_espnow():
     global e
@@ -38,7 +58,10 @@ def start_ap_once_more(channel):
         print(f"got an ESPNow packet that says we're on channel {channel}")
         packet_received_flag = 1
         start_ap(channel)
-        onboard_pixel.fill((0,5,0))  # onboard LED stays green when correct channel has been reached
+        if device == 'S3':
+            onboard_pixel.fill((0,5,0))  # onboard LED stays green when correct channel has been reached
+        else:
+            led.value = False
 
 def check_for_packet():
     if e:
@@ -47,7 +70,8 @@ def check_for_packet():
 
 def update_pixels(dmx_data):
     # print("updating_outputs")
-    onboard_pixel.fill((dmx_data[dmx_start_addr + 0], dmx_data[dmx_start_addr + 2], dmx_data[dmx_start_addr + 4], dmx_data[dmx_start_addr + 6]))
+    if device == 'S3':
+        onboard_pixel.fill((dmx_data[dmx_start_addr + 0], dmx_data[dmx_start_addr + 2], dmx_data[dmx_start_addr + 4], dmx_data[dmx_start_addr + 6]))
     pwmR.duty_cycle = (dmx_data[dmx_start_addr + 0] << 8) | dmx_data[dmx_start_addr + 1]
     pwmW.duty_cycle = (dmx_data[dmx_start_addr + 2] << 8) | dmx_data[dmx_start_addr + 3]
     pwmG.duty_cycle = (dmx_data[dmx_start_addr + 4] << 8) | dmx_data[dmx_start_addr + 5]
@@ -67,16 +91,6 @@ def read_packet():
         
 print("starting scan")
 start_ap(channel)
-
-onboard_pixel = neopixel.NeoPixel(board.NEOPIXEL, 1, pixel_order=neopixel.RGB) # onboard neopixel
-# pixels = neopixel.NeoPixel(board.D1, 1,pixel_order=neopixel.RGBW) # big neopixel connected on digital output 1
-# pixels.brightness = 1
-# pixels.fill((0, 0, 0, 0))
-
-pwmR = pwmio.PWMOut(board.D3, frequency=2500)
-pwmG = pwmio.PWMOut(board.D4, frequency=2500)
-pwmB = pwmio.PWMOut(board.D5, frequency=2500)
-pwmW = pwmio.PWMOut(board.D6, frequency=2500)
 
 start_espnow()
         
@@ -110,9 +124,7 @@ while True:
                     dmx_data[181 : 181 + partial_dmx_len] = partial_dmx
                 
                 # Always call update_pixels after receiving and processing a packet
-                update_pixels(dmx_data)
-
-                # --- MODIFIED LOGIC END ---
+                if is_repeater == False: update_pixels(dmx_data)
 
                 # Update the channel for the AP setup logic
                 if rcvd_channel > 0:
@@ -124,15 +136,31 @@ while True:
                 
                 # If this device is a repeater, re-send the original received packet
                 if is_repeater:
+                    # time.sleep(0.005)
+                    if device =='S3':
+                        onboard_pixel.fill((5,0,0)) # blink red each time we switch channel
+                    else:
+                        led.value = False # for C3-mini
+                    time.sleep(0.001)
                     e.send(payload, peer)
+                    # print("sent repeat")
+                    if device == 'S3':
+                        onboard_pixel.fill((0,0,0))
+                    else:
+                        led.value = True # for C3-mini
 
     else:
         # This part handles channel scanning if no packets are ever received
         if packet_received_flag == 0: 
             channel = (channel % 11) + 1
-            onboard_pixel.fill((5,0,0)) # blink red each time we switch channel
+            if device =='S3':
+                onboard_pixel.fill((5,0,0)) # blink red each time we switch channel
+            else:
+                led.value = False # for C3-mini
             time.sleep(0.05)
-            onboard_pixel.fill((0,0,0))
+            if device == 'S3':
+                onboard_pixel.fill((0,0,0))
+            else:
+                led.value = True # for C3-mini
             start_ap(channel)
             time.sleep(0.3)
-
