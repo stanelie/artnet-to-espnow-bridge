@@ -11,7 +11,6 @@
 # STARTDMX = 1                # first DMX channel
 # UNIVERSE = 0                # listen universe
 
-
 import adafruit_wiznet5k.adafruit_wiznet5k_socketpool as socketpool
 from adafruit_wiznet5k.adafruit_wiznet5k import WIZNET5K
 import wifi
@@ -156,7 +155,7 @@ def process_packet():
             print(f"Artpoll reply sent to {addr[0]}")
             udp_buffer[1:] = b'\x00' * MAXBUF
         if msg[9:11] == b'\x50\x00':  # is artnet DMX channel data
-            # print("dmx!")
+            # print("dmx received")
             # print(f"received universe {msg[14]}")
             if msg[14] == (UNIVERSE):
                 # --- Constants ---
@@ -180,7 +179,6 @@ def process_packet():
                 packet1[0]  = current_channel  # Byte 0: WiFi channel
                 packet2[0]  = current_channel  # Byte 0: WiFi channel
 
-                
                 # Assuming STARTDMX is defined elsewhere in your code
                 dmx_start_index = 17 + STARTDMX
                 
@@ -192,7 +190,6 @@ def process_packet():
                 # Slice the DMX data for the first packet from the main message buffer
                 dmx_data_for_packet1 = msg[dmx_start_index : dmx_start_index + DMX_CHANNELS_PER_PACKET]
                 packet1[2:] = dmx_data_for_packet1
-                
                 
                 # --- Prepare and Send Packet 2 (DMX Channels 181-360) ---
                 
@@ -207,28 +204,13 @@ def process_packet():
                 dmx_data_for_packet2 = msg[packet2_dmx_start:packet2_dmx_end]
                 packet2[2:] = dmx_data_for_packet2
                 
-                
                 # --- Update Local Hardware and Transmit ---
-                
-                # Update the NeoPixels using the data from the first packet's slice.
-                # dmx_data_for_packet1[0] is DMX channel 1 (Red)
-                # dmx_data_for_packet1[2] is DMX channel 3 (Green)
-                # dmx_data_for_packet1[4] is DMX channel 5 (Blue)
                 pixels.fill((dmx_data_for_packet1[0], dmx_data_for_packet1[2], dmx_data_for_packet1[4]))
-                
-                # Toggle the indicator pin and send both packets in quick succession
-                io0.value = True
                 e.send(packet1, peer)
-                io0.value = False
+                # print("sent esp-now packet1")
                 time.sleep(0.005)  # small 5 ms pause between packets
-                io0.value = True
                 e.send(packet2, peer)
-                io0.value = False
-                
-    global last_sent_time            
-    if time.monotonic() - last_sent_time >= 0.3:
-        e.send(dmx_data[0:50], peer)  # resend last dmx values as beacon
-        last_sent_time = time.monotonic()
+                # print("sent esp-now packet2")
         
 e = espnow.ESPNow()
 peer = espnow.Peer(b'\xff\xff\xff\xff\xff\xff')
@@ -254,8 +236,4 @@ while True:
             
             except ConnectionError as wiznet5k_error:
                 print(wiznet5k_error)
-
-
-
-
 
