@@ -3,6 +3,7 @@
 #include <WiFi.h>
 #include <esp_now.h>
 #include <Adafruit_NeoPixel.h>
+#include <esp_wifi.h>
 
 int receivePin = 3;             // DMX input pin
 dmx_port_t dmxPort = 1;         // UART1
@@ -44,6 +45,8 @@ void setup() {
   // Set Wi-Fi to STA mode (required for ESP-NOW)
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();
+  esp_wifi_set_protocol(WIFI_IF_STA, WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N | WIFI_PROTOCOL_LR);
+  safePrintln("Long Range (LR) protocol enabled.");
 
   // Init ESP-NOW
   if (esp_now_init() != ESP_OK) {
