@@ -1,0 +1,135 @@
+#include <Arduino.h>
+#include <esp_dmx.h> // from https://github.com/davispolito/esp_dmx
+#include <WiFi.h>
+#include <esp_now.h>
+#include <Adafruit_NeoPixel.h>
+
+int receivePin = 3;             // DMX input pin
+dmx_port_t dmxPort = 1;         // UART1
+byte dmxData[DMX_PACKET_SIZE];  // DMX buffer
+
+// NeoPixel setup
+#define NEOPIXEL_PIN 21
+#define NUMPIXELS 1
+Adafruit_NeoPixel pixels(NUMPIXELS, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
+
+// ESP-NOW
+uint8_t broadcastAddress[] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
+#define ESPNOW_CHANNELS 50 // number of DMX channels to send over ESP-NOW
+
+bool dmxIsConnected = false;
+unsigned long lastSerialUpdate = 0;
+
+// DMX FPS tracking
+unsigned long lastFrameTime = 0;
+float currentFps = 0.0;
+
+void safePrint(const String &msg) {
+  if (Serial) Serial.print(msg);
+}
+
+void safePrintln(const String &msg) {
+  if (Serial) Serial.println(msg);
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(300);
+  safePrintln("✅ ESP32-S3 DMX Receiver Starting...");
+
+  // NeoPixel initialization
+  pixels.begin();
+  pixels.show(); // off
+
+  // Set Wi-Fi to STA mode (required for ESP-NOW)
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+
+  // Init ESP-NOW
+  if (esp_now_init() != ESP_OK) {
+    safePrintln("Error initializing ESP-NOW");
+  }
+  esp_now_peer_info_t peerInfo = {};
+  memcpy(peerInfo.peer_addr, broadcastAddress, 6);
+  peerInfo.channel = 1;
+  peerInfo.encrypt = false;
+  if (esp_now_add_peer(&peerInfo) != ESP_OK) {
+    safePrintln("Failed to add peer");
+  }
+
+  // Install DMX driver
+  dmx_config_t config = DMX_CONFIG_DEFAULT;
+  dmx_personality_t personalities[] = { {1, "Default"} };
+  dmx_driver_install(dmxPort, &config, personalities, 1);
+
+  // Set only the receive pin
+  dmx_set_pin(dmxPort, -1, receivePin, -1);
+}
+
+void loop() {
+  dmx_packet_t packet;
+
+  if (dmx_receive(dmxPort, &packet, DMX_TIMEOUT_TICK)) {
+    if (!packet.err) {
+      unsigned long now = millis();
+
+      // Compute FPS
+      if (lastFrameTime > 0) {
+        float dt = (now - lastFrameTime) / 1000.0;
+        if (dt > 0) {
+          float fps = 1.0 / dt;
+          // Smooth for readability
+          currentFps = (currentFps * 0.8f) + (fps * 0.2f);
+        }
+      }
+      lastFrameTime = now;
+
+      if (!dmxIsConnected) {
+        safePrintln("DMX is connected!");
+        dmxIsConnected = true;
+      }
+
+      dmx_read(dmxPort, dmxData, packet.size);
+
+      // Print DMX values + FPS
+      if (now - lastSerialUpdate > 100 && Serial) {
+        Serial.print("FPS: ");
+        Serial.print(currentFps, 1);
+        Serial.print(" | ");
+        for (int i = 1; i < 17; i++) {
+          Serial.print(i);
+          Serial.print(":");
+          Serial.print(dmxData[i]);
+          Serial.print("  ");
+        }
+        Serial.println();
+        lastSerialUpdate = now;
+      }
+
+      // Update NeoPixel
+      uint8_t g = dmxData[1];
+      uint8_t r = dmxData[3];
+      uint8_t b = dmxData[5];
+      pixels.setPixelColor(0, pixels.Color(r, g, b));
+      pixels.show();
+
+      // Send ESP-NOW packet
+      uint8_t frame[1 + ESPNOW_CHANNELS];
+      frame[0] = 1;
+      int channelsToSend = packet.size - 1;
+      if (channelsToSend > ESPNOW_CHANNELS) channelsToSend = ESPNOW_CHANNELS;
+      memcpy(&frame[1], &dmxData[1], channelsToSend);
+
+      esp_err_t result = esp_now_send(broadcastAddress, frame, 1 + channelsToSend);
+      if (result != ESP_OK) {
+        safePrintln("Error sending ESP-NOW packet");
+      }
+
+    } else {
+      safePrintln("A DMX error occurred.");
+    }
+  } else if (dmxIsConnected) {
+    safePrintln("DMX was disconnected. Waiting for reconnection...");
+    dmxIsConnected = false;
+  }
+}
