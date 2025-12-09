@@ -11,8 +11,8 @@ import pwmio
 
 # CONFIG
 dmx_start_addr = 1
-is_repeater = True  # change to True to make this device into a repeater
-channel = 6  # radio scan start channel, set to correct channel to connect faster
+is_repeater = False  # change to True to make this device into a repeater
+channel = 1  # radio scan start channel, set to correct channel to connect faster
 device = 'C3' # S3 for S3-zero, C3 for C3-mini
 
 # variables initialization
